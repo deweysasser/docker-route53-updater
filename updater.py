@@ -12,10 +12,25 @@ import sys
 def exception_ignored(func):
     def wrapper(*args, **kwargs):
         try:
-            func(*args, **kwargs)
+            return func(*args, **kwargs)
         except Exception as e:
             traceback.print_exc()
             print "Function {} threw exception.  Execution continuing".format(func.__name__)
+
+    return wrapper
+
+def retry(func):
+    '''retry the given function call 3x with sleeps before giving up'''
+    def wrapper(*args, **kwargs):
+        for i in xrange(3):
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                traceback.print_exc()
+                print "Function {} threw exception.  will retry".format(func.__name__)
+                time.sleep(1)
+                print "Retrying {}".format(func.__name__)
+        print "Function {} threw exception 3 times.  Aborting call".format(func.__name__)
 
     return wrapper
             
@@ -128,6 +143,21 @@ def regenerate(args, client, rt53, remove=None):
             print "Removing {} from route53".format(name)
             rt53.delete([name], ip)
 
+@retry
+def handleAction(e, args, client, rt53):
+    name = e['Actor']['Attributes']['name']
+    print "Event {} on {}".format(e['Action'], name)
+    if e['Action'] == 'start':
+        regenerate(args, client, rt53)
+    else:
+        try:
+            regenerate(args, client, rt53, client.containers.get(name))
+        except Exception:
+            # this likely means the container was killed rather than
+            # stopped gracefully, so there's not much we can do to
+            # remove it
+            regenerate(args, client, rt53)
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -151,12 +181,7 @@ def main():
 
             for e in client.api.events(decode=True):
                 if e['Action'] in ['start', 'die']:
-                    name = e['Actor']['Attributes']['name']
-                    print "Event {} on {}".format(e['Action'], name)
-                    if e['Action'] == 'start':
-                        regenerate(args, client, rt53)
-                    else:
-                        regenerate(args, client, rt53, client.containers.get(name))
+                    handleAction(e, args, client, rt53)
         except KeyboardInterrupt:
             sys.exit(1)
         except:
