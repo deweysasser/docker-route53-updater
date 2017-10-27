@@ -4,6 +4,7 @@ import boto3
 import docker
 import argparse
 import os
+import os.path
 import traceback
 import time
 import urllib2
@@ -108,6 +109,9 @@ class Route53(object):
     
         return zones[0]['Id']
 
+def file_contents(pathname):
+    with open(pathname) as f:
+        return f.read()
 
 def get_host_ip(args):
     '''Get the AWS host IP.  
@@ -131,6 +135,8 @@ def get_host_ip(args):
         ip = urllib2.urlopen("http://169.254.169.254/latest/meta-data/public-hostname").read()
     elif args.aws_local_name:
         ip = urllib2.urlopen("http://169.254.169.254/latest/meta-data/local-hostname").read()
+    elif os.path.exists("/sys/hypervisor/uuid") and re.match("^ec2.*", file_contents("/sys/hypervisor/uuid")):
+        ip = urllib2.urlopen("http://169.254.169.254/latest/meta-data/public-hostname").read()
     else:
         ip = urllib2.urlopen("http://ipv4bot.whatismyipaddress.com").read()
 
