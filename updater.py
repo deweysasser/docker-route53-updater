@@ -8,6 +8,7 @@ import traceback
 import time
 import urllib2
 import sys
+import re
 
 def exception_ignored(func):
     def wrapper(*args, **kwargs):
@@ -53,6 +54,11 @@ class Route53(object):
     def update(self, names, ip, op="UPSERT"):
         '''Update Route 53 for all the names given to the specified ip'''
 
+        type="A"
+
+        if not re.match("\d+\.\d+\.\d+\.\d+", ip):
+            type="CNAME"
+
         for name in names:
             try:
                 hostname, domain = name.split(".", 1)
@@ -70,7 +76,7 @@ class Route53(object):
                                         "Action": op,
                                         "ResourceRecordSet": {
                                             "Name": name,
-                                            "Type": 'A',
+                                            "Type": type,
                                             "TTL": 300,
                                             "ResourceRecords": [
                                                 {
@@ -121,6 +127,10 @@ def get_host_ip(args):
         ip = urllib2.urlopen("http://169.254.169.254/latest/meta-data/public-ipv4").read()
     elif args.aws_local_ip:
         ip = urllib2.urlopen("http://169.254.169.254/latest/meta-data/local-ipv4").read()
+    elif args.aws_public_name:
+        ip = urllib2.urlopen("http://169.254.169.254/latest/meta-data/public-hostname").read()
+    elif args.aws_local_name:
+        ip = urllib2.urlopen("http://169.254.169.254/latest/meta-data/local-hostname").read()
     else:
         ip = urllib2.urlopen("http://ipv4bot.whatismyipaddress.com").read()
 
@@ -171,6 +181,8 @@ def main():
     parser.add_argument("--secret", help="AWS secret to use", default=os.getenv('AWS_SECRET_ACCESS_KEY'))
     parser.add_argument("--aws-public-ip", action='store_true', help="Update Route 53 with public IP")
     parser.add_argument("--aws-local-ip", action='store_true', help="Update Route 53 with local IP")
+    parser.add_argument("--aws-public-name", action='store_true', help="Update Route 53 with a CNAME to the current instance")
+    parser.add_argument("--aws-local-name", action='store_true', help="Update Route 53 with a CNAME to the current instance private name")
     parser.add_argument("--my-ip", help="Use the given IP instead of the discovered one")
     parser.add_argument("--noop", help="Do not actually update Route53", action='store_true')
     parser.add_argument("--labels", help="Docker labels from which to collect hostnames", nargs="*", default=["proxy.host"])
