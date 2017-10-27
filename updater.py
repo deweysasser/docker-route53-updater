@@ -131,8 +131,12 @@ def get_host_ip(args):
 def regenerate(args, client, rt53, remove=None):
     # TODO:  at this point we have the container that is dying
     ip=get_host_ip(args)
-    proxy_names = set([x.labels['proxy.host'] for x in client.containers.list() if 'proxy.host' in x.labels])
-    
+    proxy_names = set()
+    for label in args.labels:
+        for x in client.containers.list():
+            if label in x.labels:
+                proxy_names.add(x.labels[label])
+
     print "Adding proxy names {} ".format(proxy_names)
     rt53.update(proxy_names, ip)
 
@@ -169,6 +173,8 @@ def main():
     parser.add_argument("--aws-local-ip", action='store_true', help="Update Route 53 with local IP")
     parser.add_argument("--my-ip", help="Use the given IP instead of the discovered one")
     parser.add_argument("--noop", help="Do not actually update Route53", action='store_true')
+    parser.add_argument("--labels", help="Docker labels from which to collect hostnames", nargs="*", default=["proxy.host"])
+    parser.add_argument("--add-label",  help="Docker labels from which to collect hostnames", dest="labels", action="append")
 
 
     args = parser.parse_args()
