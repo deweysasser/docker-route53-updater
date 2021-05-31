@@ -1,3 +1,14 @@
+ARCHIVED
+========
+
+This project is no longer maintained.  
+
+The world has changed substantially since I wrote this.  I'm currently using kubernetes with [external-dns](https://github.com/kubernetes-sigs/external-dns) to solve this problem, and [Traefik](https://traefik.io/) for the proxy part.
+
+This should be considered deprecated.
+
+---
+
 docker-route53-updater
 ======================
 
